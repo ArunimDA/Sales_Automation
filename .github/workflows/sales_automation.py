@@ -1,4 +1,4 @@
-# %%
+import os  # Required for confidentiality
 import psycopg2
 import pandas as pd
 import smtplib
@@ -8,21 +8,27 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-# --- 1. CONFIGURATION ---
+# --- 1. SECURE CONFIGURATION ---
+# These pull from the Secrets you saved in GitHub
+DB_PASSWORD = os.getenv("DB_PASSWORD") 
+GMAIL_USER = os.getenv("GMAIL_USER")
+GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
+
 DB_CONFIG = {
     "host": "aws-1-ap-northeast-1.pooler.supabase.com",
     "database": "postgres",
     "user": "postgres.udmzqpofidalbdgvedkt",
-    "password": "Lobbing787868!!!???"
+    "password": DB_PASSWORD  # Pulled from GitHub Secrets
 }
 
 EMAIL_CONFIG = {
-    "sender": "amlan007.s@gmail.com",
-    "password": "xxnw usvp vbss eoco", # Use an App Password, not your login password
+    "sender": GMAIL_USER,       # Pulled from GitHub Secrets
+    "password": GMAIL_PASSWORD, # Pulled from GitHub Secrets
     "recipients": ["amlan007.s@gmail.com", "amlan008.s@outlook.com"],
     "subject": "Automated Sales Performance Report"
 }
 
+# --- 2. THE MASTER QUERY ---
 QUERY = """
 SELECT 
     s.*,
@@ -57,7 +63,6 @@ def send_email(file_path):
     body = "Please find the latest Sales Automation Report attached."
     msg.attach(MIMEText(body, 'plain'))
 
-    # Attach the Excel file
     with open(file_path, "rb") as attachment:
         part = MIMEBase('application', 'octet-stream')
         part.set_payload(attachment.read())
@@ -65,7 +70,6 @@ def send_email(file_path):
         part.add_header('Content-Disposition', f"attachment; filename= {file_path}")
         msg.attach(part)
 
-    # Sending logic (Using Gmail as example)
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.starttls()
     server.login(EMAIL_CONFIG["sender"], EMAIL_CONFIG["password"])
@@ -73,9 +77,8 @@ def send_email(file_path):
     server.quit()
 
 def run_automation():
-    print("Starting Data Extraction...")
+    print("Starting Data Extraction from Supabase...")
     try:
-        # Connect to Postgres and fetch data
         conn = psycopg2.connect(**DB_CONFIG)
         df = pd.read_sql_query(QUERY, conn)
         conn.close()
@@ -87,14 +90,11 @@ def run_automation():
             print(f"Success! Report sent at {time.ctime()}")
         else:
             print("No new data found.")
-
     except Exception as e:
         print(f"Error occurred: {e}")
 
-# --- 2. THE LOOP ---
+# --- 3. THE EXECUTION ---
 if __name__ == "__main__":
-    while True:
-        run_automation()
-        print("Waiting 2 minutes for next run...")
-        time.sleep(120) # 120 seconds = 2 minutes
-
+    # We REMOVED the while True loop. 
+    # GitHub YAML handles the schedule now.
+    run_automation()
